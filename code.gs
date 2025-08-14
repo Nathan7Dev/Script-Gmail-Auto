@@ -7,7 +7,8 @@ function verificarNCsSemResposta() {
   const labelRespondido = GmailApp.getUserLabelByName("NC_Respondida") || GmailApp.createLabel("NC_Respondida");
   const labelCancelada = GmailApp.getUserLabelByName("NC_Cancelada") || GmailApp.createLabel("NC_Cancelada");
 
-  Logger.log("Iniciando verificação das NCs");
+  const dataInicio = new Date("2025-08-14T00:00:00"); // Data mínima para processamento
+  Logger.log("Iniciando verificação das NCs a partir de " + dataInicio);
 
   const query = `subject:"${assuntoInicio}"`;
   const threads = GmailApp.search(query);
@@ -17,6 +18,7 @@ function verificarNCsSemResposta() {
   let ignoradasCount = 0;
   let ignoradasMotivo = {};
   let reenviadas = [];
+  let ignoradasPorData = 0; // contador específico para data
 
   const agora = new Date();
 
@@ -42,13 +44,21 @@ function verificarNCsSemResposta() {
     const ultima = mensagens[mensagens.length - 1];
     const remetenteOriginal = primeira.getFrom().toLowerCase();
 
+    // Ignorar mensagens anteriores à data definida
+    if (ultima.getTime() < dataInicio.getTime()) {
+      ignoradasCount++;
+      ignoradasPorData++;
+      ignoradasMotivo["Mensagem anterior à data de início"] = (ignoradasMotivo["Mensagem anterior à data de início"] || 0) + 1;
+      return;
+    }
+
     if (!remetentesNC.some(r => remetenteOriginal.includes(r))) {
       ignoradasCount++;
       ignoradasMotivo["Remetente não autorizado"] = (ignoradasMotivo["Remetente não autorizado"] || 0) + 1;
       return;
     }
 
-    const diffHoras = (agora.getTime() - ultima.getDate().getTime()) / (1000 * 60 * 60);
+    const diffHoras = (agora.getTime() - ultima.getTime()) / (1000 * 60 * 60);
 
     if (diffHoras < tempoMinimoHoras) {
       ignoradasCount++;
@@ -104,6 +114,9 @@ function verificarNCsSemResposta() {
   for (const motivo in ignoradasMotivo) {
     Logger.log(`- ${motivo}: ${ignoradasMotivo[motivo]} thread(s)`);
   }
+
+  // Log específico para mensagens anteriores à data de início
+  Logger.log("Ignoradas apenas por serem anteriores a " + dataInicio.toLocaleDateString() + ": " + ignoradasPorData + " thread(s)");
 
   if (reenviadas.length > 0) {
     Logger.log("Reenviadas:");
