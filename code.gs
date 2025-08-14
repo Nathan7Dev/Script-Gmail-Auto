@@ -1,6 +1,6 @@
 function verificarNCsSemResposta() {
-  const remetentesNC = ["supervisora.qualidade@telelaudo.com.br"];
-  const assuntoInicio = "NÃO CONFORMIDADE: NC - "; // texto que deve ser o início do assunto
+  const remetentesNC = ["email.autorizado@dominio.com"];
+  const assuntoInicio = "NÃO CONFORMIDADE: NC - ";
   const tempoMinimoHoras = 48;
 
   const labelReenviado = GmailApp.getUserLabelByName("NC_Reenviada") || GmailApp.createLabel("NC_Reenviada");
@@ -9,10 +9,10 @@ function verificarNCsSemResposta() {
 
   Logger.log("Iniciando verificação das NCs");
 
-  const query = `subject:"NÃO CONFORMIDADE: NC -"`; // busca geral, depois filtro exato abaixo
+  const query = `subject:"${assuntoInicio}"`;
   const threads = GmailApp.search(query);
 
-  Logger.log("Encontradas " + threads.length + " threads com o assunto contendo 'NÃO CONFORMIDADE: NC -'.");
+  Logger.log("Encontradas " + threads.length + " threads com o assunto contendo '" + assuntoInicio + "'.");
 
   let ignoradasCount = 0;
   let ignoradasMotivo = {};
@@ -23,9 +23,7 @@ function verificarNCsSemResposta() {
   threads.forEach(thread => {
     const assunto = thread.getFirstMessageSubject();
 
-    // Só processar se o assunto COMEÇA com o texto esperado
     if (!assunto.startsWith(assuntoInicio)) {
-      // Ignorar se não começar com o padrão
       ignoradasCount++;
       ignoradasMotivo["Assunto não inicia com padrão esperado"] = (ignoradasMotivo["Assunto não inicia com padrão esperado"] || 0) + 1;
       return;
@@ -42,7 +40,6 @@ function verificarNCsSemResposta() {
     const mensagens = thread.getMessages();
     const primeira = mensagens[0];
     const ultima = mensagens[mensagens.length - 1];
-
     const remetenteOriginal = primeira.getFrom().toLowerCase();
 
     if (!remetentesNC.some(r => remetenteOriginal.includes(r))) {
@@ -78,8 +75,8 @@ function verificarNCsSemResposta() {
     const houveFechamentoManual = mensagens.slice(1).some(msg => {
       const from = msg.getFrom().toLowerCase();
       const corpo = msg.getPlainBody().toLowerCase();
-      const ehZara = remetentesNC.some(r => from.includes(r));
-      return ehZara && corpo.includes(comandoFechamento);
+      const ehAutorizado = remetentesNC.some(r => from.includes(r));
+      return ehAutorizado && corpo.includes(comandoFechamento);
     });
 
     if (houveFechamentoManual) {
