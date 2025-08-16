@@ -1,25 +1,22 @@
 function processarNC() {
-  const EMAIL_AUTOR = "EMAIL.AUTORIZADO@PROVEDOR.com.br"; 
+  const EMAIL_AUTOR = "7nathanzera@gmail.com"; 
   const ASSUNTO_PADRAO = "NÃO CONFORMIDADE: NC - ";
-  const PRAZO_HORAS = 48 // Verificação de 2 dias sem resposta.
-  const DATA_MINIMA = new Date("2025-08-15T00:00:00"); 
+  const PRAZO_HORAS = 0.0083; // 30 segundos para teste
 
   const labelReenviado = getOrCreateLabel("NC_Reenviada");
   const labelRespondido = getOrCreateLabel("NC_Respondida");
   const labelCancelado = getOrCreateLabel("NC_Cancelada");
 
+  const DATA_MINIMA = new Date("2025-08-15T00:00:00"); 
   const query = `subject:"${ASSUNTO_PADRAO}" after:${formatDateForQuery(DATA_MINIMA)}`;
   const threads = GmailApp.search(query, 0, 500);
 
-  let processadasCount = threads.length; // Total de threads encontradas
+  let processadasCount = threads.length;
   let reenviadasCount = 0;
   let canceladasCount = 0;
   let respondidasCount = 0;
   let ignoradasMotivo = {};
   let reenviadasNCs = [];
-
-  // Set para controlar threads já logadas como ignoradas
-  const threadsIgnoradas = new Set();
 
   for (const thread of threads) {
     try {
@@ -31,7 +28,6 @@ function processarNC() {
       // Ignorar threads com NC_Respondida ou NC_Cancelada
       if (labels.includes(labelRespondido.getName()) || labels.includes(labelCancelado.getName())) {
         const motivo = "Já possui NC_Respondida ou NC_Cancelada";
-        // Removido Logger.log para não exibir repetidamente
         if (labels.includes(labelRespondido.getName())) respondidasCount++;
         if (labels.includes(labelCancelado.getName())) canceladasCount++;
         ignoradasMotivo[motivo] = (ignoradasMotivo[motivo] || 0) + 1;
@@ -67,6 +63,10 @@ function processarNC() {
         continue;
       }
 
+      // Verifica se o email original está dentro da data mínima
+      const dataOriginal = mensagens[0].getDate();
+      if (dataOriginal < DATA_MINIMA) continue;
+
       // Verifica se passou o prazo para cobrança
       const ultimaMensagem = mensagens[mensagens.length - 1];
       const dataUltima = ultimaMensagem.getDate();
@@ -98,9 +98,8 @@ function processarNC() {
   Logger.log("NC reenviadas:");
   reenviadasNCs.forEach(nc => Logger.log(` - ${nc}`));
   Logger.log("Motivos ignorados:");
-  for (const motivo in ignoradasMotivo) {
-    Logger.log(` - ${motivo}: ${ignoradasMotivo[motivo]}`);
-  }
+  if (ignoradasMotivo["Respondida por destinatário válido"]) Logger.log(` - Respondida por destinatário válido: ${ignoradasMotivo["Respondida por destinatário válido"]}`);
+  if (ignoradasMotivo["Já possui NC_Respondida ou NC_Cancelada"]) Logger.log(` - Já possui NC_Respondida ou NC_Cancelada: ${ignoradasMotivo["Já possui NC_Respondida ou NC_Cancelada"]}`);
 }
 
 // Atualizada: retorna true se realmente houve reenvio
@@ -118,15 +117,11 @@ function responderTodosNaThread(thread, mensagens, emailAutor) {
   toOriginal = Array.from(new Set(toOriginal.filter(e => e.toLowerCase() !== emailAutor.toLowerCase())));
   ccOriginal = Array.from(new Set(ccOriginal.filter(e => e.toLowerCase() !== emailAutor.toLowerCase())));
 
-  if (toOriginal.length === 0 && ccOriginal.length === 0) {
-    Logger.log(`Thread "${mensagens[0].getSubject()}" não possui destinatários válidos para cobrança.`);
-    return false;
-  }
+  if (toOriginal.length === 0 && ccOriginal.length === 0) return false;
 
   const corpo = `⚠️ Atenção: esta Não Conformidade ainda não recebeu um retorno.\n` +
-                `Por favor, responda a este email, para registrarmos na NC original.`;
+                `Por favor, responda este email.`;
 
-  // Responder todos usando a primeira mensagem da thread
   mensagens[0].replyAll(corpo);
   return true;
 }
