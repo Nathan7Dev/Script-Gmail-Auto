@@ -65,7 +65,10 @@ function processarNC() {
 
       // Verifica se o email original está dentro da data mínima
       const dataOriginal = mensagens[0].getDate();
-      if (dataOriginal < DATA_MINIMA) continue;
+      if (dataOriginal < DATA_MINIMA) {
+        ignoradasMotivo["Data anterior à mínima"] = (ignoradasMotivo["Data anterior à mínima"] || 0) + 1; // << ADIÇÃO
+        continue;
+      }
 
       // Verifica se passou o prazo para cobrança
       const ultimaMensagem = mensagens[mensagens.length - 1];
@@ -100,6 +103,7 @@ function processarNC() {
   Logger.log("Motivos ignorados:");
   if (ignoradasMotivo["Respondida por destinatário válido"]) Logger.log(` - Respondida por destinatário válido: ${ignoradasMotivo["Respondida por destinatário válido"]}`);
   if (ignoradasMotivo["Já possui NC_Respondida ou NC_Cancelada"]) Logger.log(` - Já possui NC_Respondida ou NC_Cancelada: ${ignoradasMotivo["Já possui NC_Respondida ou NC_Cancelada"]}`);
+  if (ignoradasMotivo["Data anterior à mínima"]) Logger.log(` - Data anterior à mínima: ${ignoradasMotivo["Data anterior à mínima"]}`); // << ADIÇÃO
 }
 
 // Atualizada: retorna true se realmente houve reenvio
